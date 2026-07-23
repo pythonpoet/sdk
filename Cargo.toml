@@ -12,7 +12,7 @@ package.authors = [
 package.edition = "2024"
 package.license = "MIT OR Apache-2.0"
 package.homepage = "https://dioxuslabs.com"
-package.repository = "https://github.com/DioxusLabs/sdk/"
+package.repository = "https://github.com/pythonpoet/sdk/"
 
 [workspace.dependencies]
 # Workspace
