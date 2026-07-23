@@ -35,34 +35,58 @@ pub fn data_directory() -> std::path::PathBuf {
 
 #[cfg(target_os = "android")]
 fn android_data_directory() -> std::path::PathBuf {
-    use jni::JNIEnv;
-    use jni::objects::{JObject, JString};
-    use std::sync::mpsc::channel;
+    use jni::{
+        objects::{JObject, JString},
+        sys::{jobject, JavaVM as RawJavaVM},
+        JavaVM,
+    };
 
-    let (tx, rx) = channel();
+    let android_context = ndk_context::android_context();
 
-    dioxus::mobile::wry::prelude::dispatch(
-        move |env: &mut JNIEnv, activity: &JObject, _webview| {
-            let files_dir = env
-                .call_method(activity, "getFilesDir", "()Ljava/io/File;", &[])
-                .unwrap()
-                .l()
-                .unwrap();
+    let vm = unsafe {
+        JavaVM::from_raw(android_context.vm().cast::<RawJavaVM>())
+            .expect("invalid Android JavaVM")
+    };
 
-            let abs_path = env
-                .call_method(files_dir, "getAbsolutePath", "()Ljava/lang/String;", &[])
-                .unwrap()
-                .l()
-                .unwrap();
+    let context = unsafe {
+        JObject::from_raw(android_context.context().cast::<_>() as jobject)
+    };
 
-            let abs_path: JString = abs_path.into();
-            let abs_path: String = env.get_string(&abs_path).unwrap().into();
+    let mut env = vm
+        .attach_current_thread()
+        .expect("failed to attach thread to Android JavaVM");
 
-            tx.send(std::path::PathBuf::from(abs_path)).unwrap();
-        },
-    );
+    let files_dir = env
+        .call_method(
+            &context,
+            "getFilesDir",
+            "()Ljava/io/File;",
+            &[],
+        )
+        .expect("failed to call Context.getFilesDir")
+        .l()
+        .expect("getFilesDir returned null");
 
-    rx.recv().unwrap()
+    let absolute_path = env
+        .call_method(
+            &files_dir,
+            "getAbsolutePath",
+            "()Ljava/lang/String;",
+            &[],
+        )
+        .expect("failed to call File.getAbsolutePath")
+        .l()
+        .expect("getAbsolutePath returned null");
+
+    let absolute_path = JString::from(absolute_path);
+
+    let absolute_path = env
+        .get_string(&absolute_path)
+        .expect("invalid Android files path")
+        .to_string_lossy()
+        .into_owned();
+
+    std::path::PathBuf::from(absolute_path)
 }
 
 #[doc(hidden)]

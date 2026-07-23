@@ -420,7 +420,11 @@ where
     }
 
     fn update(&mut self) {
-        self.data = S::get(&self.key).unwrap_or(self.data);
+        // Fetch the raw value `T` from storage.
+        if let Some(stored_value) = S::get::<T>(&self.key) {
+            // Update the reactive signal with the fetched value
+            self.data.set(stored_value);
+        }
     }
 
     fn key(&self) -> &S::Key {

@@ -1,7 +1,6 @@
 use crate::LocalStorage;
 use crate::{new_storage_entry, use_hydrate_storage};
 use dioxus::prelude::*;
-use dioxus_signals::Signal;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
