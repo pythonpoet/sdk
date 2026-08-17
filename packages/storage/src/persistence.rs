@@ -1,3 +1,4 @@
+use crate::StorageMode;
 use crate::LocalStorage;
 use crate::{new_storage_entry, use_hydrate_storage};
 use dioxus::prelude::*;
@@ -30,9 +31,19 @@ pub fn new_persistent<
     key: impl ToString,
     init: impl FnOnce() -> T,
 ) -> Signal<T> {
-    let storage_entry = new_storage_entry::<LocalStorage, T>(key.to_string(), init);
-    storage_entry.save_to_storage_on_change();
-    storage_entry.data
+    let mode = StorageMode::current();
+
+    match mode {
+        // SSR has no writable filesystem backend. Fall back to a plain
+        // in-memory Signal (same as `new_storage`); the client hydrates it
+        // with a real StorageEntry after the first render.
+        StorageMode::Server => Signal::new(init()),
+        _ => {
+            let storage_entry = new_storage_entry::<LocalStorage, T>(key.to_string(), init);
+            storage_entry.save_to_storage_on_change();
+            storage_entry.data
+        }
+    }
 }
 
 /// A persistent storage hook that can be used to store data across application reloads.
